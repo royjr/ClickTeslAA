@@ -6,6 +6,7 @@ TeslAA but clickable (https://play.google.com/store/apps/details?id=it.cpeb.tesl
 * Model S/X - ClickTeslAA.html?sx
 * Model S New - ClickTeslAA.html?ns
 
+![](https://github.com/royjr/ClickTeslAA/blob/main/realtesla.png?raw=true)
 
 ``` 480p	3/Y 	0-117 	118-681 	682-799		118 564 118
 480p	S/X 	0-201 	202-597 	598-799		202 396 202
