@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html>
+<title>ClickTeslAA</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<style>
+    html,body{
+        margin:0;
+        background-color: black;
+    }
+</style>
+<body>
+<video id="player" autoplay muted></video>
+<span id="info"><h1>Is TeslAA running?</h1></span>
+<script>
+    let latestVersion=2;
+    let que=new Uint8Array();
+    var vidElement = document.querySelector('video');
+    vidElement.style.display="none";
+    vidElement.addEventListener('error',function(e){ 	console.error(e); socketClose();});
+    let sourceBuffer=null;
+    let lastrun=0;
+    let socket;
+
+    function sourceOpen(e) {
+        var mime = 'video/mp4; codecs="avc1.428028"';
+        sourceBuffer = e.currentTarget.addSourceBuffer(mime);
+        sourceBuffer.addEventListener('error',socketClose);
+        vidElement.play();
+        vidElement.playbackRate=1;
+    }
+
+    function socketClose(event){
+        setTimeout(function(){
+          location.reload();
+        },2000);
+    }
+
+    function socketData (event) {
+        new Response(event.data).arrayBuffer()
+            .then((d)=>{
+                var bytes = new Uint8Array(d);
+                if (vidElement.buffered.length>0 && vidElement.buffered.end(0)*30>vidElement.getVideoPlaybackQuality().totalVideoFrames+10)
+                {
+                    vidElement.playbackRate=1.4;
+                }
+                else
+                    vidElement.playbackRate=1;
+                que=appendByteArray(que,bytes);
+                if (sourceBuffer!=null && !sourceBuffer.updating)
+                {
+                    sourceBuffer.appendBuffer(que);
+                    que=new Uint8Array();
+                }
+            });
+    }
+    function abortFetching() {
+        console.log('Now aborting');
+        controller.abort()
+    }
+
+
+
+
+    function checkphone() {
+        controller = new AbortController();
+        signal = controller.signal;
+        console.log('Now fetching');
+        var urlToFetch = "http://3.3.3.3:8080/getsocketport";
+
+
+        wait=setTimeout(function(){
+            abortFetching();
+
+        },5000);
+
+        fetch(urlToFetch, {
+            method: 'get',
+            signal: signal,
+        })
+        .then(response => response.text())
+        .then(data => {
+            clearTimeout(wait);
+            if (document.hidden)
+            {
+                setTimeout(function(){
+                    checkphone();
+                },2000);
+                return
+            }
+
+            var port;
+            if (isJson(data))
+            {
+                json=JSON.parse(data);
+                port=json.port;
+                if (json.resolution==2) {
+                    if (window.location.search == "?3y") {
+                        // 1080 3/Y
+                        document.querySelector("video").style.height="954px";
+                        document.querySelector("video").style.width="1132px";
+                        document.querySelector("video").style.objectFit="none";
+                    } else if (window.location.search == "?sx") {
+                        // 1080 S/X
+                        document.querySelector("video").style.height="1080px";
+                        document.querySelector("video").style.width="898px";
+                        document.querySelector("video").style.objectFit="none";
+                    } else if (window.location.search == "?ns") {
+                        // 1080 N/S
+                        document.querySelector("video").style.height="1020px";
+                        document.querySelector("video").style.width="1400px";
+                        document.querySelector("video").style.objectFit="none";
+                    }
+                }
+                else if (json.resolution==1)
+                {
+                    if (window.location.search == "?3y") {
+                        // 720 3/Y
+                        document.querySelector("video").style.height="720px";
+                        document.querySelector("video").style.width="854px";
+                        document.querySelector("video").style.objectFit="none";
+                    } else if (window.location.search == "?sx") {
+                        // 720 S/X
+                        document.querySelector("video").style.height="720px";
+                        document.querySelector("video").style.width="598px";
+                        document.querySelector("video").style.objectFit="none";
+                    } else if (window.location.search == "?ns") {
+                        // 720 N/S
+                        document.querySelector("video").style.height="720px";
+                        document.querySelector("video").style.width="988px";
+                        document.querySelector("video").style.objectFit="none";
+                    }
+                }
+                else
+                {
+                    if (window.location.search == "?3y") {
+                        // 480 3/Y
+                        document.querySelector("video").style.height="480px";
+                        document.querySelector("video").style.width="564px";
+                        document.querySelector("video").style.objectFit="none";
+                    } else if (window.location.search == "?sx") {
+                        // 480 S/X
+                        document.querySelector("video").style.height="480px";
+                        document.querySelector("video").style.width="396px";
+                        document.querySelector("video").style.objectFit="none";
+                    } else if (window.location.search == "?ns") {
+                        // 480 N/S
+                        document.querySelector("video").style.height="480px";
+                        document.querySelector("video").style.width="656px";
+                        document.querySelector("video").style.objectFit="none";
+                    }
+                }
+                if (json.hasOwnProperty("buildversion"))
+                {
+                    if (latestVersion>parseInt(json.buildversion))
+                    {
+                        alert("update");
+                        if (parseInt(localStorage.getItem("showupdate")) !== latestVersion)
+                        {
+                            alert("There is a new version in playsotre, please update your app.");
+                            localStorage.setItem("showupdate",latestVersion);
+                        }
+                    }
+                }
+            }
+            else
+                port=data;
+
+            socket = new WebSocket('ws://3.3.3.3:'+port);
+            socket.addEventListener('open', function (event) {
+                socket.send(JSON.stringify({action:"START"}));
+                lastrun=Date.now();
+                timerId = setTimeout(function(){keepAlive(socket)}, 2000);
+                vidElement.style.display="block";
+                document.getElementById("info").style.display="none";
+                var mediaSource = new MediaSource();
+                vidElement.src = URL.createObjectURL(mediaSource);
+                mediaSource.addEventListener('sourceopen', sourceOpen);
+                mediaSource.addEventListener('sourceended', () => {
+                    console.log("mediaSource ended");
+                    socketClose();
+                });
+                mediaSource.addEventListener('sourceclose', () => {
+                    console.log("mediaSource closed");
+                    socketClose();
+                });
+                mediaSource.addEventListener('error', () => {
+                    console.error("mediaSource error");
+                    socketClose();
+                });
+                this.removeEventListener('open', arguments.callee);
+            });
+            socket.addEventListener('close',socketClose);
+            socket.addEventListener('error',socketClose)
+            socket.addEventListener('message', socketData);
+        })
+        .catch((error) => {
+            clearTimeout(wait);
+            setTimeout(function(){
+                checkphone();
+            },2000);
+        });
+    }
+
+    var timerId=null;
+    let background=false;
+    function keepAlive(webSocket) {
+        if (Date.now()>lastrun+3000)
+        {
+            //location.reload();
+        }
+
+        lastrun=Date.now();
+        if (webSocket.readyState == webSocket.OPEN) {
+            webSocket.send('');
+            timerId=setTimeout(function(){keepAlive(webSocket)},2000);
+        }
+    }
+
+    function cancelKeepAlive() {
+        if (timerId!=null) {
+            clearTimeout(timerId);
+        }
+    }
+
+    checkphone();
+
+    const renderObject=document.querySelector('body');
+    var isMousedown = false;
+
+    renderObject.addEventListener('mousedown', (event) => {
+        isMousedown = true;
+        vidElement.playbackRate=1.4;
+        socket.send(JSON.stringify({action:"DOWN",X:Math.floor(event.clientX),Y:Math.floor(event.clientY)}));
+    });
+
+    renderObject.addEventListener('mouseup', (event) => {
+        isMousedown = false;
+        socket.send(JSON.stringify({action:"UP",X:Math.floor(event.clientX),Y:Math.floor(event.clientY)}));
+    });
+
+    renderObject.addEventListener('mousemove', (event) => {
+        if (isMousedown) {
+            vidElement.playbackRate=1.4;
+            socket.send(JSON.stringify({action:"DRAG",X:Math.floor(event.clientX),Y:Math.floor(event.clientY)}));
+        }
+    });
+
+    function appendByteArray(buffer1, buffer2) {
+        var tmp = new Uint8Array((buffer1.byteLength | 0) + (buffer2.byteLength | 0));
+        tmp.set(buffer1, 0);
+        tmp.set(buffer2, buffer1.byteLength | 0);
+        return tmp;
+    }
+
+    function isJson(item) {
+        item = typeof item !== "string"
+            ? JSON.stringify(item)
+            : item;
+        try {
+            item = JSON.parse(item);
+        } catch (e) {
+            return false;
+        }
+        if (typeof item === "object" && item !== null) {
+            return true;
+        }
+        return false;
+    }
+</script>
+
+</body>
+</html>
