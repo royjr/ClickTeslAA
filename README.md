@@ -1,9 +1,11 @@
 # ClickTeslAA
 TeslAA but clickable
 
-480 800
-720 1280
-1080 1920
+
+Model 3/Y - ClickTeslAA.html?3y
+Model S/X - ClickTeslAA.html?sx
+Model S New - ClickTeslAA.html?ns
+
 
 480p	3/Y 	0-117 	118-681 	682-799		118 564 118
 480p	S/X 	0-201 	202-597 	598-799		202 396 202
